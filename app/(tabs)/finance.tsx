@@ -3,8 +3,10 @@ import Papa from "papaparse";
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
-
+  const [statementData, setStatementData] = useState<String[] | null>([]);
   const fileReader = new FileReader();
+
+  console.log(statementData);
 
   const handleOnChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     if (e.target.files != null) setFile(e.target.files[0]);
@@ -19,14 +21,17 @@ export default function App() {
       fileReader.onload = function (event) {
         const csvOutput = event.target != null ? event.target.result : null;
         if (csvOutput) {
-          const parsedData = Papa.parse(csvOutput.toString(), {
-            header: true,
-            skipEmptyLines: true,
-          });
+          const parsedData: Papa.ParseResult<String> = Papa.parse(
+            csvOutput.toString(),
+            {
+              header: true,
+              skipEmptyLines: true,
+            }
+          );
           if (parsedData.errors.length > 0) {
             console.error("Error parsing CSV:", parsedData.errors);
           } else {
-            console.log(parsedData.data);
+            setStatementData(parsedData.data);
           }
         } else {
           console.error("Failed to read file data");
