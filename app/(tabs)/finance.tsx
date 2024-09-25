@@ -1,5 +1,10 @@
 import React, { useState } from "react";
+import { StyleSheet, Image, Platform, TextInput, Button } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import Papa from "papaparse";
+import ParallaxScrollView from "@/components/ParallaxScrollView";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
@@ -32,6 +37,7 @@ export default function App() {
             console.error("Error parsing CSV:", parsedData.errors);
           } else {
             setStatementData(parsedData.data);
+            console.log(parsedData.data);
           }
         } else {
           console.error("Failed to read file data");
@@ -43,8 +49,16 @@ export default function App() {
   };
 
   return (
-    <div style={{ textAlign: "center" }}>
-      <h1>REACTJS CSV IMPORT EXAMPLE </h1>
+    <ParallaxScrollView
+      headerBackgroundColor={{ light: "#D0D0D0", dark: "#353636" }}
+      headerImage={
+        <Ionicons size={310} name="code-slash" style={styles.headerImage} />
+      }
+    >
+      <ThemedView style={styles.titleContainer}>
+        <ThemedText type="title">Finance</ThemedText>
+      </ThemedView>
+      <ThemedText type="defaultSemiBold">Import Statements</ThemedText>
       <form>
         <input
           type={"file"}
@@ -61,6 +75,19 @@ export default function App() {
           IMPORT CSV
         </button>
       </form>
-    </div>
+    </ParallaxScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  headerImage: {
+    color: "#808080",
+    bottom: -90,
+    left: -35,
+    position: "absolute",
+  },
+  titleContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+});

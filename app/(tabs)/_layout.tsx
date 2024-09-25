@@ -28,6 +28,30 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="statements"
+        options={{
+          title: "View Statements",
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name={focused ? "home" : "home-outline"}
+              color={color}
+            />
+          ),
+        }}
+      />
+      {/* <Tabs.Screen
+        name="finance2"
+        options={{
+          title: "Finance",
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name={focused ? "calculator" : "calculator-outline"}
+              color={color}
+            />
+          ),
+        }}
+      /> */}
+      <Tabs.Screen
         name="finance"
         options={{
           title: "Finance",
