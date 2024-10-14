@@ -45,18 +45,20 @@ const Statements: React.FC = () => {
   const [data, setData] = useState<Expense[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const params = useLocalSearchParams<{ id?: string }>();
-  let api_url = "https://localhost:44382/api/v1/statements";
+  let api_url = `${process.env.EXPO_PUBLIC_DOMAIN}${process.env.EXPO_PUBLIC_API_VERSION}/statements`;
+  console.log(process.env.EXPO_PUBLIC_DOMAIN);
 
   useEffect(() => {
     // Simulate fetching data from an API using the provided static data
     if (params.id != null) api_url = api_url + "?id=" + params.id;
-    console.log("Calling api: " + api_url);
+    console.log(`Calling api: ${api_url}`);
     const fetchTransactions = async () => {
       try {
         const response = await axios.get(api_url, {
           headers: {
-            "X-Api-Key": "1234",
-            "Imc-App-Key": "asouder@instituteofmusic.org",
+            "X-Api-Key": process.env.EXPO_PUBLIC_API_KEY,
+            "Imc-App-Key": process.env.EXPO_PUBLIC_APP_KEY,
+            mode: "no-cors"
           },
         });
         setData(response.data.expenses); // Assuming the API response has the same structure as provided
