@@ -1,17 +1,88 @@
-import React, { useState } from "react";
+import React, { memo, useState } from "react";
 import { StyleSheet, Image, Platform, TextInput, Button } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Papa from "papaparse";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { InterfaceOrientation } from "react-native-reanimated";
+import axios from "axios";
+import { useLocalSearchParams } from "expo-router";
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
-  const [statementData, setStatementData] = useState<String[] | null>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const fileReader = new FileReader();
+  let api_url = `${process.env.EXPO_PUBLIC_DOMAIN}${process.env.EXPO_PUBLIC_API_VERSION}/expenses`;
+  let postCallMessage = "";
 
-  console.log(statementData);
+  interface Expense {
+    transactionDate: string;
+    postDate: string;
+    amount: number;
+    description: string;
+    cardNumber: number;
+    category: string;
+    type: string;
+    memo: string;
+  }
+
+  interface bankExpense {
+    Amount: string;
+    Card: string;
+    Category: string;
+    Description: string;
+    Memo: string;
+    "Post Date": string;
+    "Transaction Date": string;
+    Type: string;
+  }
+
+  function prepForApiCall(sData:string){
+    if (sData !== ""){
+      let expenses:Expense[] = [];
+      const oData:bankExpense[] = JSON.parse(sData);
+      console.log(oData[1].Category);
+
+      for (let i=0; i<oData.length;i++){
+          expenses.push({
+            amount : Number(oData[i].Amount),
+            cardNumber : Number(oData[i].Card),
+            transactionDate : new Date(oData[i]["Transaction Date"]).toJSON(),
+            postDate : new Date(oData[i]["Post Date"]).toJSON(),
+            category : oData[i].Category,
+            description : oData[i].Description,
+            type : oData[i].Type,
+            memo : oData[i].Memo
+          })
+      }
+
+      console.log(JSON.stringify(expenses));
+
+      // Post data
+      
+      console.log(`Calling api: ${api_url}`);
+      
+      const postExpenses = async () => {
+      try {
+          const response = await axios.post(api_url, expenses, {
+          headers: {
+              "X-Api-Key": process.env.EXPO_PUBLIC_API_KEY,
+              "Imc-App-Key": process.env.EXPO_PUBLIC_APP_KEY,
+          },
+          });
+          postCallMessage = "Data uploaded successfully!"
+      } catch (error) {
+          console.error("Error fetching data:", error);
+          postCallMessage = "Sorry, the data failed to upload"
+      } finally {
+          setLoading(false);
+      }
+      };
+      postExpenses();
+    }
+
+  }
 
   const handleOnChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     if (e.target.files != null) setFile(e.target.files[0]);
@@ -26,7 +97,7 @@ export default function App() {
       fileReader.onload = function (event) {
         const csvOutput = event.target != null ? event.target.result : null;
         if (csvOutput) {
-          const parsedData: Papa.ParseResult<String> = Papa.parse(
+          const parsedData: Papa.ParseResult<string> = Papa.parse(
             csvOutput.toString(),
             {
               header: true,
@@ -36,8 +107,7 @@ export default function App() {
           if (parsedData.errors.length > 0) {
             console.error("Error parsing CSV:", parsedData.errors);
           } else {
-            setStatementData(parsedData.data);
-            console.log(parsedData.data);
+            prepForApiCall(JSON.stringify(parsedData.data));
           }
         } else {
           console.error("Failed to read file data");
@@ -47,6 +117,8 @@ export default function App() {
       fileReader.readAsText(file);
     }
   };
+
+  
 
   return (
     <ParallaxScrollView

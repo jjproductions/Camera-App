@@ -5,9 +5,13 @@ import {
   View,
   FlatList,
   ActivityIndicator,
+  Button,
 } from "react-native";
+import {SafeAreaView, SafeAreaProvider} from 'react-native-safe-area-context';
 import axios from "axios";
 import { useLocalSearchParams } from "expo-router";
+import Checkbox from 'expo-checkbox';
+// import GetStatements from "../../services/users.js"
 
 // Define TypeScript interface for transaction data
 interface CardInfo {
@@ -41,17 +45,40 @@ interface ApiResponse {
   expenses: Expense[];
 }
 
+interface checkboxData {
+  Index: number;
+  isChecked: boolean;
+}
+
 const Statements: React.FC = () => {
   const [data, setData] = useState<Expense[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [dataCkbx, setDataCkbx] = useState<checkboxData[]>([]);
+  const [isChecked, setIsChecked] = useState<boolean>(false);
+  const [isCheckedGlobal, setIsCheckedGlobal] = useState<boolean>(false);
   const params = useLocalSearchParams<{ id?: string }>();
   let api_url = `${process.env.EXPO_PUBLIC_DOMAIN}${process.env.EXPO_PUBLIC_API_VERSION}/statements`;
-  console.log(process.env.EXPO_PUBLIC_DOMAIN);
+  // console.log(process.env.EXPO_PUBLIC_DOMAIN);
+
+  function InitialDataCkbx(idData:Expense[]){
+    let tempData:checkboxData[] = [];
+    for (let i=0; i<idData.length; i++)
+    {
+      tempData.push({
+        Index : idData[i].id,
+        isChecked : false,
+      }
+      );
+    }
+    setDataCkbx(tempData);
+  }
 
   useEffect(() => {
     // Simulate fetching data from an API using the provided static data
+    // Call GetStatements
+    // GetStatements(params);
     if (params.id != null) api_url = api_url + "?id=" + params.id;
-    console.log(`Calling api: ${api_url}`);
+    // console.log(`Calling api: ${api_url}`);
     const fetchTransactions = async () => {
       try {
         const response = await axios.get(api_url, {
@@ -62,6 +89,7 @@ const Statements: React.FC = () => {
           },
         });
         setData(response.data.expenses); // Assuming the API response has the same structure as provided
+        InitialDataCkbx(response.data.expenses);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -72,49 +100,60 @@ const Statements: React.FC = () => {
     fetchTransactions();
   }, []);
 
-  //       try {
-  //         // Simulate API call using static data
-  //         const response = [
-  //           {
-  //             Id: "234",
-  //             Card: "6571",
-  //             "Transaction Date": "8/13/2024",
-  //             "Post Date": "8/13/2024",
-  //             Description: "VISTAPRINT",
-  //             Category: "Professional Services",
-  //             Type: "Sale",
-  //             Amount: "-34.1",
-  //             Memo: "",
-  //             "Report Id": "35",
-  //           },
-  //           {
-  //             Id: "132",
-  //             Card: "1200",
-  //             "Transaction Date": "8/9/2024",
-  //             "Post Date": "8/12/2024",
-  //             Description: "BRUNO PIZZERIA",
-  //             Category: "Food & Drink",
-  //             Type: "Sale",
-  //             Amount: "-715.89",
-  //             Memo: "",
-  //             "Report Id": "33",
-  //           },
-  //         ];
 
-  //         setData(response);
-  //       } catch (error) {
-  //         console.error("Error fetching data:", error);
-  //       } finally {
-  //         setLoading(false);
-  //       }
-  //     };
+  // Enable / Disable Generate Report Button
+  function handleReport(dataReport:checkboxData[]) {
+    let showReportButton = false;
+    for (let i=0; i<dataReport.length; i++){
+      if (dataReport[i].isChecked){
+        showReportButton = true;
+        break;
+      }
+    }
+    showReportButton ? setIsChecked(true) : setIsChecked(false);
+  }
+  
+  // Enable / Disable Transaction Selection
+  // -20 => deselect all checkboxes
+  // -10 => select all checkboxes
+  const handleChange = (id:number) => {
+    let temp = dataCkbx.map((item) => {
+      if (id == -20 || id == -10){
+        if (id == -20)
+          return { ...item, isChecked: false}
+        else
+          return { ...item, isChecked: true};
+      }
+      else if (id === item.Index) {
+        setIsCheckedGlobal(false);
+        return { ...item, isChecked: !item.isChecked };
+      }
+      return item;
+    });
+    console.log("handle Change")
+    setDataCkbx(temp);
+    handleReport(temp);
+  };
 
-  //     fetchTransactions();
-  //   }, []);
-  console.log(data);
+
+  const handleSelectAll = () => {
+    isCheckedGlobal ? handleChange(-20) : handleChange(-10);
+    setIsCheckedGlobal(!isCheckedGlobal);
+  }
+
   // Render individual transaction item
   const renderItem = ({ item }: { item: Expense }) => (
     <View style={styles.itemContainer}>
+      <Checkbox
+        style={styles.checkboxItem} 
+        value={dataCkbx[dataCkbx.findIndex(x => x.Index == item.id)].isChecked}
+        onChange={() => handleChange(item.id)}
+        />
+      {/* <CheckBox 
+        style={styles.checkboxItem} 
+        value={dataCkbx[dataCkbx.findIndex(x => x.Index == item.id)].isChecked}
+        onChange={() => handleChange(item.id)}
+        /> */}
       <Text style={styles.card}>Card: {item.cardNumber}</Text>
       <Text style={styles.text}>ID: {item.id}</Text>
       <Text style={styles.text}>
@@ -133,17 +172,41 @@ const Statements: React.FC = () => {
   );
 
   return (
-    <View style={styles.container}>
-      {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
-      ) : (
-        <FlatList
-          data={data}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderItem}
-        />
-      )}
-    </View>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        {loading ? (
+          <ActivityIndicator size="large" color="#0000ff" />
+        ) : (
+          <>
+          {data.length == 0 ? (
+            <Text style={styles.header}>No transactions available</Text>
+          ) : (
+            <View>
+              <Text style={styles.header}>{data.length} transactions
+              <Text style={styles.buttonReport}>
+                <Button 
+                  title="New Report" 
+                  disabled={!isChecked}/>
+                
+                </Text>
+              </Text>
+              <Checkbox 
+                style={styles.checkbox}
+                value={isCheckedGlobal}
+                onValueChange={() => handleSelectAll()}
+                // color={isChecked ? '#4630EB' : undefined}
+                />
+            </View>
+          )}
+          <FlatList
+            data={data}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderItem}
+            // onRefresh={()=> void;}
+          />
+          </>)}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 };
 
@@ -154,7 +217,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   itemContainer: {
-    padding: 15,
+    padding: 30,
     borderBottomWidth: 1,
     borderBottomColor: "#ccc",
   },
@@ -171,6 +234,20 @@ const styles = StyleSheet.create({
     marginTop: 5,
     color: "red",
   },
+  header: {
+    fontSize : 20,
+    margin: 5,
+  },
+buttonReport: {
+  width: 150,
+  marginLeft: 300,
+},
+checkbox: {
+  marginLeft: 10,
+},
+checkboxItem: {
+  marginLeft: -20,
+}
 });
 
 export default Statements;
