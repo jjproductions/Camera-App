@@ -11,6 +11,7 @@ import {SafeAreaView, SafeAreaProvider} from 'react-native-safe-area-context';
 import axios from "axios";
 import { useLocalSearchParams } from "expo-router";
 import Checkbox from 'expo-checkbox';
+import {Picker} from '@react-native-picker/picker';
 // import GetStatements from "../../services/users.js"
 
 // Define TypeScript interface for transaction data
@@ -50,16 +51,34 @@ interface checkboxData {
   isChecked: boolean;
 }
 
+interface users {
+  id: number;
+  name: string;
+  email: string;
+  card: number;
+  cardId: number;
+  active: boolean;
+}
+
 const Statements: React.FC = () => {
   const [data, setData] = useState<Expense[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [dataCkbx, setDataCkbx] = useState<checkboxData[]>([]);
   const [isChecked, setIsChecked] = useState<boolean>(false);
   const [isCheckedGlobal, setIsCheckedGlobal] = useState<boolean>(false);
+  const [selected, setSelected] = useState<number>(-1);
+  const [users, setUsers] = useState<users[]>([]);
   const params = useLocalSearchParams<{ id?: string }>();
-  let api_url = `${process.env.EXPO_PUBLIC_DOMAIN}${process.env.EXPO_PUBLIC_API_VERSION}/statements`;
+  let api_domain = `${process.env.EXPO_PUBLIC_DOMAIN}${process.env.EXPO_PUBLIC_API_VERSION}`;
+  let api_statements_url = api_domain + `/statements`;
+  let api_users_url = api_domain + `/users?allusers=1`;
+  const userHeaders = {
+    "X-Api-Key": process.env.EXPO_PUBLIC_API_KEY,
+    "Imc-App-Key": process.env.EXPO_PUBLIC_APP_KEY,
+  };
   // console.log(process.env.EXPO_PUBLIC_DOMAIN);
 
+  //Initialize isChecked array as falseß
   function InitialDataCkbx(idData:Expense[]){
     let tempData:checkboxData[] = [];
     for (let i=0; i<idData.length; i++)
@@ -73,22 +92,53 @@ const Statements: React.FC = () => {
     setDataCkbx(tempData);
   }
 
+  // Parse user object from api call and set list of users
+  function ParseUsers(userObj:users[]){
+    let activeUsers:users[] = [];
+    userObj.map((x) => {
+      if (x.active && x.cardId != null)
+        activeUsers.push(x);
+    })
+    setUsers(activeUsers);
+  }
+
+  
   useEffect(() => {
-    // Simulate fetching data from an API using the provided static data
-    // Call GetStatements
-    // GetStatements(params);
-    if (params.id != null) api_url = api_url + "?id=" + params.id;
-    // console.log(`Calling api: ${api_url}`);
+    let isUsersAvailable = users.length == 0 ? false : true;
+      
     const fetchTransactions = async () => {
       try {
-        const response = await axios.get(api_url, {
-          headers: {
-            "X-Api-Key": process.env.EXPO_PUBLIC_API_KEY,
-            "Imc-App-Key": process.env.EXPO_PUBLIC_APP_KEY,
-            mode: "no-cors"
-          },
+        // Call api for list of active users with a valid cc#
+        if (!isUsersAvailable){
+          console.log("Get users")
+          const response_users = await axios.get(api_users_url, {
+            headers: userHeaders,
+          });
+          if (response_users.data.users != null) {
+            isUsersAvailable = true;
+            ParseUsers(response_users.data.users);
+            //TODO: log this scenario
+          }
+          else
+            isUsersAvailable = false;
+        }
+        
+        //Set statements URL based on if dropdown is available (is this Admin mode)
+        //TODO: if admin mode, call new endpoint
+        if (isUsersAvailable && selected != -1)
+          api_statements_url = api_statements_url + "?id=" + selected
+        else if (!isUsersAvailable)
+          api_statements_url = api_statements_url = params.id != null ? api_statements_url + "?id=" + params.id : api_statements_url;
+
+        // Fetching transaction data from API
+        // Call GetStatements
+        // GetStatements(params);
+        const response = await axios.get(api_statements_url, {
+          headers: userHeaders
         });
-        setData(response.data.expenses); // Assuming the API response has the same structure as provided
+        console.log("Get Transactions")
+        setIsCheckedGlobal(false);
+        setData(response.data.expenses);
         InitialDataCkbx(response.data.expenses);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -98,7 +148,7 @@ const Statements: React.FC = () => {
     };
 
     fetchTransactions();
-  }, []);
+  }, [selected]);
 
 
   // Enable / Disable Generate Report Button
@@ -135,10 +185,17 @@ const Statements: React.FC = () => {
     handleReport(temp);
   };
 
-
+  // Global checkbox logic
+  // Calls handleChange with -20 to uncheck all boxes or -10 to check all boxes
   const handleSelectAll = () => {
     isCheckedGlobal ? handleChange(-20) : handleChange(-10);
     setIsCheckedGlobal(!isCheckedGlobal);
+  }
+
+  // Handle Dropdown
+  const handleDrowndownChange = (itemValue: number) => {
+    console.log(itemValue);
+    setSelected(itemValue);
   }
 
   // Render individual transaction item
@@ -149,11 +206,6 @@ const Statements: React.FC = () => {
         value={dataCkbx[dataCkbx.findIndex(x => x.Index == item.id)].isChecked}
         onChange={() => handleChange(item.id)}
         />
-      {/* <CheckBox 
-        style={styles.checkboxItem} 
-        value={dataCkbx[dataCkbx.findIndex(x => x.Index == item.id)].isChecked}
-        onChange={() => handleChange(item.id)}
-        /> */}
       <Text style={styles.card}>Card: {item.cardNumber}</Text>
       <Text style={styles.text}>ID: {item.id}</Text>
       <Text style={styles.text}>
@@ -187,8 +239,16 @@ const Statements: React.FC = () => {
                 <Button 
                   title="New Report" 
                   disabled={!isChecked}/>
-                
                 </Text>
+                <Picker 
+                  style={styles.dropdown} 
+                  selectedValue={selected} 
+                  onValueChange={handleDrowndownChange}
+                  // mode="dropdown"
+                  >
+                    <Picker.Item key="none" label="" value="-1" />
+                    {users.map(user => <Picker.Item key={user.email} label={user.name} value={user.cardId}/>)}
+                </Picker>
               </Text>
               <Checkbox 
                 style={styles.checkbox}
@@ -213,7 +273,7 @@ const Statements: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#cccff",
     paddingTop: 50,
   },
   itemContainer: {
@@ -236,17 +296,20 @@ const styles = StyleSheet.create({
   },
   header: {
     fontSize : 20,
-    margin: 5,
+    marginLeft: 50,
   },
 buttonReport: {
   width: 150,
-  marginLeft: 300,
+  marginLeft: 50,
 },
 checkbox: {
   marginLeft: 10,
 },
 checkboxItem: {
   marginLeft: -20,
+},
+dropdown: {
+  marginLeft: 50,
 }
 });
 

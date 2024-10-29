@@ -7,7 +7,6 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { InterfaceOrientation } from "react-native-reanimated";
 import axios from "axios";
-import { useLocalSearchParams } from "expo-router";
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
