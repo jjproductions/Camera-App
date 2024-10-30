@@ -68,10 +68,13 @@ const Statements: React.FC = () => {
   const [isCheckedGlobal, setIsCheckedGlobal] = useState<boolean>(false);
   const [selected, setSelected] = useState<number>(-1);
   const [users, setUsers] = useState<users[]>([]);
+  const [statusMessage, setStatusMessage] = useState<string>("");
   const params = useLocalSearchParams<{ id?: string }>();
   let api_domain = `${process.env.EXPO_PUBLIC_DOMAIN}${process.env.EXPO_PUBLIC_API_VERSION}`;
   let api_statements_url = api_domain + `/statements`;
   let api_users_url = api_domain + `/users?allusers=1`;
+  let tempMessage = "";
+  let isMultipleTransactions = "";
   const userHeaders = {
     "X-Api-Key": process.env.EXPO_PUBLIC_API_KEY,
     "Imc-App-Key": process.env.EXPO_PUBLIC_APP_KEY,
@@ -119,7 +122,7 @@ const Statements: React.FC = () => {
             ParseUsers(response_users.data.users);
             //TODO: log this scenario
           }
-          else
+          else 
             isUsersAvailable = false;
         }
         
@@ -127,30 +130,46 @@ const Statements: React.FC = () => {
         //TODO: if admin mode, call new endpoint
         if (isUsersAvailable && selected != -1)
           api_statements_url = api_statements_url + "?id=" + selected
-        else if (!isUsersAvailable)
-          api_statements_url = api_statements_url = params.id != null ? api_statements_url + "?id=" + params.id : api_statements_url;
+        else if (isUsersAvailable && selected == -1)
+          api_statements_url = "";
+
+        // Do i need this?  It will allow users to see other people's data
+        // else if (!isUsersAvailable)
+        //   api_statements_url = api_statements_url = params.id != null ? api_statements_url + "?id=" + params.id : api_statements_url;
 
         // Fetching transaction data from API
         // Call GetStatements
         // GetStatements(params);
-        const response = await axios.get(api_statements_url, {
-          headers: userHeaders
-        });
-        console.log("Get Transactions")
-        setIsCheckedGlobal(false);
-        setData(response.data.expenses);
-        InitialDataCkbx(response.data.expenses);
+        if (api_statements_url !== ""){
+          const response = await axios.get(api_statements_url, {
+            headers: userHeaders
+          });
+          console.log("Get Transactions")
+          setIsCheckedGlobal(false);
+          setData(response.data.expenses);
+          InitialDataCkbx(response.data.expenses);
+        };
       } catch (error) {
         console.error("Error fetching data:", error);
+        setData([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchTransactions();
   }, [selected]);
 
+  // Reset the following controls
+  // * Status Message
+  // * Report Button
+  useEffect(() => {
+    isMultipleTransactions = data.length > 1 ? " transactions" : " transaction";
+    tempMessage = data.length > 0 ? data.length + isMultipleTransactions : "No Transactions Available";
+    setStatusMessage(tempMessage);
+    setIsChecked(false);
+  }, [data]);
 
+  //console.log("testing");
   // Enable / Disable Generate Report Button
   function handleReport(dataReport:checkboxData[]) {
     let showReportButton = false;
@@ -194,7 +213,6 @@ const Statements: React.FC = () => {
 
   // Handle Dropdown
   const handleDrowndownChange = (itemValue: number) => {
-    console.log(itemValue);
     setSelected(itemValue);
   }
 
@@ -230,11 +248,8 @@ const Statements: React.FC = () => {
           <ActivityIndicator size="large" color="#0000ff" />
         ) : (
           <>
-          {data.length == 0 ? (
-            <Text style={styles.header}>No transactions available</Text>
-          ) : (
             <View>
-              <Text style={styles.header}>{data.length} transactions
+              <Text style={styles.header}>{statusMessage}
               <Text style={styles.buttonReport}>
                 <Button 
                   title="New Report" 
@@ -250,20 +265,20 @@ const Statements: React.FC = () => {
                     {users.map(user => <Picker.Item key={user.email} label={user.name} value={user.cardId}/>)}
                 </Picker>
               </Text>
-              <Checkbox 
+              {data.length > 0 && <Checkbox 
                 style={styles.checkbox}
                 value={isCheckedGlobal}
                 onValueChange={() => handleSelectAll()}
+
                 // color={isChecked ? '#4630EB' : undefined}
-                />
+                />}
             </View>
-          )}
-          <FlatList
-            data={data}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderItem}
-            // onRefresh={()=> void;}
-          />
+            <FlatList
+              data={data}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderItem}
+              // onRefresh={()=> void;}
+            />
           </>)}
       </SafeAreaView>
     </SafeAreaProvider>
@@ -310,6 +325,10 @@ checkboxItem: {
 },
 dropdown: {
   marginLeft: 50,
+},
+status: {
+  marginLeft: 30,
+  color: "red"
 }
 });
 
