@@ -12,6 +12,7 @@ import axios from "axios";
 import { useLocalSearchParams } from "expo-router";
 import Checkbox from 'expo-checkbox';
 import {Picker} from '@react-native-picker/picker';
+import { api_domain } from '../../services/utility.js';
 // import GetStatements from "../../services/users.js"
 
 // Define TypeScript interface for transaction data
@@ -66,20 +67,17 @@ const Statements: React.FC = () => {
   const [dataCkbx, setDataCkbx] = useState<checkboxData[]>([]);
   const [isChecked, setIsChecked] = useState<boolean>(false);
   const [isCheckedGlobal, setIsCheckedGlobal] = useState<boolean>(false);
-  const [selected, setSelected] = useState<number>(-1);
+  const [selected, setSelected] = useState<number>(0);
   const [users, setUsers] = useState<users[]>([]);
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [showUsersCtrl, setShowUsersCtrl] = useState<boolean>(false);
   const params = useLocalSearchParams<{ id?: string }>();
-  let api_domain = `${process.env.EXPO_PUBLIC_DOMAIN}${process.env.EXPO_PUBLIC_API_VERSION}`;
-  let api_statements_url = api_domain + `/statements`;
+  let api_statements_url = "";
   let api_users_url = api_domain + `/users?allusers=1`;
   let tempMessage = "";
   let isMultipleTransactions = "";
-  const userHeaders = {
-    "X-Api-Key": process.env.EXPO_PUBLIC_API_KEY,
-    "Imc-App-Key": process.env.EXPO_PUBLIC_APP_KEY,
-  };
-  // console.log(process.env.EXPO_PUBLIC_DOMAIN);
+  
+  
 
   //Initialize isChecked array as falseß
   function InitialDataCkbx(idData:Expense[]){
@@ -102,13 +100,21 @@ const Statements: React.FC = () => {
       if (x.active && x.cardId != null)
         activeUsers.push(x);
     })
+    console.log(`{ParseUsers: ${activeUsers}}`);
     setUsers(activeUsers);
   }
 
   
   useEffect(() => {
     let isUsersAvailable = users.length == 0 ? false : true;
-      
+    const isUserAdmin = localStorage.getItem("isAdmin") == 'true' ? true : false;
+    
+    const auth = `Bearer ${localStorage.getItem("jwtToken")}`;
+    const userHeaders = {
+      "Authorization": auth
+    };
+    console.log(`isUserAdmin=${isUserAdmin}`);
+    setShowUsersCtrl(isUserAdmin);
     const fetchTransactions = async () => {
       try {
         // Call api for list of active users with a valid cc#
@@ -119,7 +125,9 @@ const Statements: React.FC = () => {
           });
           if (response_users.data.users != null) {
             isUsersAvailable = true;
+            console.log(`Response from db: $1`)
             ParseUsers(response_users.data.users);
+;
             //TODO: log this scenario
           }
           else 
@@ -128,9 +136,33 @@ const Statements: React.FC = () => {
         
         //Set statements URL based on if dropdown is available (is this Admin mode)
         //TODO: if admin mode, call new endpoint
-        if (isUsersAvailable && selected != -1)
-          api_statements_url = api_statements_url + "?id=" + selected
-        else if (isUsersAvailable && selected == -1)
+        if (!isUserAdmin)
+        {
+          console.log(`loggedInEmail=${localStorage.getItem("loggedInEmail")}`);
+          console.log(`users=${users}:: isUsersAvailable=${isUsersAvailable}`);
+          const cUser = users.find(x => x.email == localStorage.getItem("loggedInEmail"));
+          const jUser = JSON.stringify(users);
+          console.log(`cUser=${cUser} :: jUser=${jUser} :: selected=${selected}`);
+          // console.log(`cUser=${cUser.id}`);
+          if (users.length == 0) 
+            {
+              console.log("doing setSelected");
+              setSelected(-1);
+            }
+            else console.log("users is not null");
+          if (cUser != null)
+          {
+            console.log("cUser not null");
+            setSelected(cUser.card);
+          }
+          else console.log("cUsers is null");
+        }
+        
+        if (isUsersAvailable && selected != -1 && selected != 0)
+          //Retrieve data for the logged in User
+          api_statements_url = `${api_domain}/statements?id=${selected}`;
+        else if (isUsersAvailable && (selected == -1 || selected == 0))
+          //Do NOT make the statements call as no user is selected
           api_statements_url = "";
 
         // Do i need this?  It will allow users to see other people's data
@@ -147,7 +179,8 @@ const Statements: React.FC = () => {
           console.log("Get Transactions")
           setIsCheckedGlobal(false);
           setData(response.data.expenses);
-          InitialDataCkbx(response.data.expenses);
+          // if (showUsersCtrl)
+            InitialDataCkbx(response.data.expenses);
         };
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -255,7 +288,7 @@ const Statements: React.FC = () => {
                   title="New Report" 
                   disabled={!isChecked}/>
                 </Text>
-                <Picker 
+                {showUsersCtrl && <Picker 
                   style={styles.dropdown} 
                   selectedValue={selected} 
                   onValueChange={handleDrowndownChange}
@@ -263,7 +296,7 @@ const Statements: React.FC = () => {
                   >
                     <Picker.Item key="none" label="" value="-1" />
                     {users.map(user => <Picker.Item key={user.email} label={user.name} value={user.cardId}/>)}
-                </Picker>
+                </Picker>}
               </Text>
               {data.length > 0 && <Checkbox 
                 style={styles.checkbox}
