@@ -1,24 +1,48 @@
-import { Tabs } from "expo-router";
-import React from "react";
-
+import { Tabs, useRouter } from "expo-router";
 import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useEffect } from "react";
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
+  const isAdmin = localStorage.getItem("isAdmin") == 'true' ? true : false;
+  const isSignedIn = localStorage.getItem("jwtToken") == "" ? false : true;
+  const myTab = createBottomTabNavigator();
+
+//   useEffect(() => {
+//     if (!isSignedIn) {
+//         router.push("/signin");
+//     }
+//   }, [])
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        headerShown: true,
-      }}
-    >
+    
+        // <myTab.Navigator>
+        //     <myTab.Screen
+        //         name="Home" component={}
+        //     />
+        // </myTab.Navigator>
+    
+    <Tabs screenOptions={{ tabBarActiveTintColor: 'blue' }}>
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name={focused ? "home" : "home-outline"}
+              color={color}
+            />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="signin"
         options={{
-          title: "Home",
+          title: 'Login',
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon
               name={focused ? "home" : "home-outline"}
@@ -30,46 +54,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="statements"
         options={{
-          title: "View Statements",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon
-              name={focused ? "home" : "home-outline"}
-              color={color}
-            />
-          ),
-        }}
-      />
-      {/* <Tabs.Screen
-        name="finance2"
-        options={{
-          title: "Finance",
+          title: 'Settings',
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon
               name={focused ? "calculator" : "calculator-outline"}
-              color={color}
-            />
-          ),
-        }}
-      /> */}
-      <Tabs.Screen
-        name="finance"
-        options={{
-          title: "Finance",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon
-              name={focused ? "calculator" : "calculator-outline"}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="camera"
-        options={{
-          title: "Camera",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon
-              name={focused ? "camera" : "camera-outline"}
               color={color}
             />
           ),
@@ -77,4 +65,6 @@ export default function TabLayout() {
       />
     </Tabs>
   );
+
+
 }
